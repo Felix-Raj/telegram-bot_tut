@@ -56,7 +56,7 @@ def callback_minute(bot, job):
     bot.send_message(chat_id='409803880',
                      text='One message per blah interval {}'.format(job.interval))
     # job interval can be changed here
-    job.interval += 1.0
+    job.interval += 10
     if job.interval > 60.0:
         job.schedule_removal()
 
