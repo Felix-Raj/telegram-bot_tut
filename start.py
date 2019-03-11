@@ -16,6 +16,9 @@ logger.setLevel(logging.INFO)
 updater = Updater(token='708241383:AAF6c7kwoPN3MsYJNQrc2L2XSdjSeUxZ4X0')
 dispatcher = updater.dispatcher
 
+# https://github.com/python-telegram-bot/python-telegram-bot/wiki/Extensions-%E2%80%93-JobQueue/0c79111ed68022f4936c2725f9827eac0a5240a0
+job_queue = updater.job_queue
+
 
 def start(bot, update):
     bot.send_message(chat_id=update.message.chat_id, text='Hello World')
@@ -49,16 +52,28 @@ def unknown(bot, update):
     bot.send_message(update.message.chat_id, text='What do you mean??')
 
 
+def callback_minute(bot, job):
+    bot.send_message(chat_id='409803880',
+                     text='One message per blah interval {}'.format(job.interval))
+    # job interval can be changed here
+    job.interval += 1.0
+    if job.interval > 60.0:
+        job.schedule_removal()
+
+
 start_handler = CommandHandler('start', start)  # for /start command
 echo_handler = MessageHandler(Filters.text, echo)  # for any text messages
 caps_handler = CommandHandler('caps', caps, pass_args=True)  # /caps felix -> FELIX
 inline_caps_handler = InlineQueryHandler(inline_caps)  # @felix_first_bot input input
+job_minute = job_queue.run_repeating(callback_minute, interval=10, first=0)
 unknown_handler = MessageHandler(Filters.command, unknown)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(echo_handler)
 dispatcher.add_handler(caps_handler)
 dispatcher.add_handler(inline_caps_handler)
+# job_minute.enabled = False  # disable the job temporarily
+# job_minute.schedule_removal()  # remove completely
 dispatcher.add_handler(unknown_handler)
 
 updater.start_polling()
