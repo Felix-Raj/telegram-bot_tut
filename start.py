@@ -61,19 +61,35 @@ def callback_minute(bot, job):
         job.schedule_removal()
 
 
+def callback_alarm(bot, job):
+    bot.send_message(chat_id=job.context, text='BEEP!')
+
+
+def callback_timer(bot, update, **kwargs):
+    args = kwargs.get('args')
+    _job_queue = kwargs.get('job_queue')
+    time_out = int(args[0])
+    bot.send_message(chat_id=update.message.chat_id,
+                     text='Setting reminder after {} seconds'.format(time_out))
+    _job_queue.run_once(callback_alarm, time_out, context=update.message.chat_id)
+
+
 start_handler = CommandHandler('start', start)  # for /start command
 echo_handler = MessageHandler(Filters.text, echo)  # for any text messages
 caps_handler = CommandHandler('caps', caps, pass_args=True)  # /caps felix -> FELIX
 inline_caps_handler = InlineQueryHandler(inline_caps)  # @felix_first_bot input input
 job_minute = job_queue.run_repeating(callback_minute, interval=10, first=0)
+timer_handler = CommandHandler('timer', callback_timer, pass_args=True,
+                               pass_job_queue=True)  # /timer 1
 unknown_handler = MessageHandler(Filters.command, unknown)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(echo_handler)
 dispatcher.add_handler(caps_handler)
 dispatcher.add_handler(inline_caps_handler)
-# job_minute.enabled = False  # disable the job temporarily
+job_minute.enabled = False  # disable the job temporarily
 # job_minute.schedule_removal()  # remove completely
+dispatcher.add_handler(timer_handler)
 dispatcher.add_handler(unknown_handler)
 
 updater.start_polling()
