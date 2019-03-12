@@ -4,6 +4,8 @@ import sys
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler
 
+from pomodoro import Pomodoro
+
 logging.basicConfig(level=logging.INFO, stream=sys.stdout, datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 stdout = logging.StreamHandler(stream=sys.stdout)
@@ -11,6 +13,8 @@ formatter = logging.Formatter('%(asctime)s %(funcName)s %(lineno)d %(message)s')
 stdout.setFormatter(formatter)
 logger.addHandler(stdout)
 logger.setLevel(logging.INFO)
+
+pomodoro = None
 
 # https://github.com/python-telegram-bot/python-telegram-bot/wiki/Extensions-%E2%80%93-Your-first-Bot/c8dd272e26b939168eaa5812de5bf2b066ff10d6
 updater = Updater(token='708241383:AAF6c7kwoPN3MsYJNQrc2L2XSdjSeUxZ4X0')
@@ -65,6 +69,19 @@ def callback_alarm(bot, job):
     bot.send_message(chat_id=job.context, text='BEEP!')
 
 
+def pomodoro_alarm(bot, job):
+    global pomodoro
+
+    if not pomodoro:
+        job.schedule_removal()
+        return
+
+    bot.send_message(chat_id=job.context,
+                     text=pomodoro.current_state.message())
+    job.interval = pomodoro.current_state.time_out
+    pomodoro.next_state()
+
+
 def callback_timer(bot, update, **kwargs):
     args = kwargs.get('args')
     _job_queue = kwargs.get('job_queue')
@@ -74,6 +91,24 @@ def callback_timer(bot, update, **kwargs):
     _job_queue.run_once(callback_alarm, time_out, context=update.message.chat_id)
 
 
+def pomodoro_callback(bot, update, **kwargs):
+    global pomodoro
+    args = kwargs.get('args')
+    _job_queue = kwargs.get('job_queue')
+
+    if args[0] == 'start':
+        logger.info('starting pomodoro')
+        pomodoro = Pomodoro()
+        _job_queue.run_repeating(pomodoro_alarm,
+                                 interval=0,
+                                 first=0, context=update.message.chat_id)
+
+    if args[0] == 'stop':
+        logger.info('stopping pomodoro')
+        pomodoro = None
+        _job_queue.enabled = False
+
+
 start_handler = CommandHandler('start', start)  # for /start command
 echo_handler = MessageHandler(Filters.text, echo)  # for any text messages
 caps_handler = CommandHandler('caps', caps, pass_args=True)  # /caps felix -> FELIX
@@ -81,6 +116,8 @@ inline_caps_handler = InlineQueryHandler(inline_caps)  # @felix_first_bot input 
 job_minute = job_queue.run_repeating(callback_minute, interval=10, first=0)
 timer_handler = CommandHandler('timer', callback_timer, pass_args=True,
                                pass_job_queue=True)  # /timer 1
+pomodoro_handler = CommandHandler('pomodoro', pomodoro_callback,
+                                  pass_args=True, pass_job_queue=True)
 unknown_handler = MessageHandler(Filters.command, unknown)
 
 dispatcher.add_handler(start_handler)
@@ -90,6 +127,7 @@ dispatcher.add_handler(inline_caps_handler)
 job_minute.enabled = False  # disable the job temporarily
 # job_minute.schedule_removal()  # remove completely
 dispatcher.add_handler(timer_handler)
+dispatcher.add_handler(pomodoro_handler)
 dispatcher.add_handler(unknown_handler)
 
 updater.start_polling()
