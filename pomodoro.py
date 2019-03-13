@@ -29,4 +29,4 @@ class PomodoroState:
         self.next_state = next_state
 
     def message(self):
-        return 'Next reminder in {} minutes'.format(self.time_out)
+        return 'Next reminder in {} minutes'.format(self.time_out/60)
