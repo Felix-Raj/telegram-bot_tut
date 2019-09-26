@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from telegram import InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler
+from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler
 
 from pomodoro import Pomodoro
 
@@ -128,6 +128,56 @@ job_minute.enabled = False  # disable the job temporarily
 # job_minute.schedule_removal()  # remove completely
 dispatcher.add_handler(timer_handler)
 dispatcher.add_handler(pomodoro_handler)
-dispatcher.add_handler(unknown_handler)
 
+
+# menu - refer https://stackoverflow.com/a/51126393
+def start_kbd(bot, update):
+    update.message.reply_text(main_menu_message(), reply_markup=main_menu_keyboard())
+
+
+def first_menu(bot, update):
+    query = update.callback_query
+    bot.edit_message_text(chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          text=first_menu_message(),
+                          reply_markup=first_menu_keyboard())
+
+
+def first_sub_menu(bot, update):
+    query = update.callback_query
+    bot.send_message(chat_id=query.message.chat_id, text='Sub menu 1')
+
+
+# menu - keyboards
+def main_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton('Option 1', callback_data='m1'),
+         InlineKeyboardButton('Option 2', callback_data='m2')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def first_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton('Submenu 1-1', callback_data='sm1_1'),
+         InlineKeyboardButton('Submenu 1-2', callback_data='sm1_2'), ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+# menu - messages
+def main_menu_message():
+    return "Here's the menu"
+
+
+def first_menu_message():
+    return "Chose first menu message"
+
+
+# menu - dispatcher
+dispatcher.add_handler(CommandHandler('menu', start_kbd))
+dispatcher.add_handler(CallbackQueryHandler(first_menu, pattern='m1'))
+dispatcher.add_handler(CallbackQueryHandler(first_sub_menu, pattern='sm1_1'))
+
+dispatcher.add_handler(unknown_handler)
 updater.start_polling()
